@@ -45,7 +45,10 @@ SET_PWD_ATTEMPTS = 1
 AUTH_TIMEOUT = 2.0
 AUTH_ATTEMPTS = 3
 CONFIRM_TIMEOUT = 60.0
-#: The app polls SET_PWD every 2s inside a 60s window.
+#: How many "still waiting for the button" SET_PWD frames the vehicle may send
+#: before we give up with PairingTimeout. The driver waits passively on each one
+#: rather than re-sending SET_PWD, so this is a bound on unsolicited frames, not
+#: a poll count -- a vehicle that chatters forever must not wedge the handshake.
 MAX_CONFIRMATIONS = 30
 
 _PRE_COMM_PAYLOAD_LEN = 30

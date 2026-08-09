@@ -29,11 +29,16 @@ def test_credentials_reject_a_wrong_length_password(bad: bytes) -> None:
 def test_scooter_defaults_meet_the_home_assistant_floor() -> None:
     signature = inspect.signature(Scooter.__init__)
     assert signature.parameters["connect_timeout"].default >= 10.0
-    assert signature.parameters["allow_pairing"].default is False
+
+
+def test_scooter_cannot_be_constructed_into_pairing() -> None:
+    # Pairing writes a password that only pair()'s return value carries, so it
+    # must never happen as a side effect of poll() or identify().
+    assert "allow_pairing" not in inspect.signature(Scooter.__init__).parameters
 
 
 def test_scooter_exposes_the_documented_operations() -> None:
-    for name in ("session", "poll", "identify"):
+    for name in ("session", "poll", "identify", "pair"):
         assert callable(getattr(Scooter, name))
 
 

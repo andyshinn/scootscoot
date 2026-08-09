@@ -65,7 +65,6 @@ class Scooter:
         credentials: Credentials,
         *,
         device_name: str | None = None,
-        allow_pairing: bool = False,
         connect_timeout: float = DEFAULT_CONNECT_TIMEOUT,
         read_timeout: float = DEFAULT_READ_TIMEOUT,
     ) -> None:
@@ -73,7 +72,6 @@ class Scooter:
         self._profile = profile
         self._credentials = credentials
         self._device_name = device_name
-        self._allow_pairing = allow_pairing
         self._connect_timeout = connect_timeout
         self._read_timeout = read_timeout
 
@@ -83,9 +81,12 @@ class Scooter:
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[ScooterSession]:
-        """Open one authenticated connection for the duration of the block."""
-        client, transport, established = await self._open()
-        try:
+        """Open one authenticated connection for the duration of the block.
+
+        Never pairs: a vehicle with no password for these credentials raises
+        PairingRequired. Call pair() first, deliberately.
+        """
+        async with self._connection(allow_pairing=False) as (transport, established):
             yield ScooterSession(
                 transport,
                 established.crypto,
@@ -94,8 +95,6 @@ class Scooter:
                 serial=established.serial,
                 timeout=self._read_timeout,
             )
-        finally:
-            await self._close(client, transport)
 
     async def poll(self) -> ScooterState:
         """Open a connection, read the profile's poll set, close it."""
@@ -107,7 +106,43 @@ class Scooter:
         async with self.session() as session:
             return await session.identify()
 
-    async def _open(self) -> tuple[BleakClient, BleTransport, Established]:
+    async def pair(self) -> bytes:
+        """Negotiate a new password with an unpaired vehicle and return it.
+
+        This is the only operation that writes to the vehicle, and it is
+        deliberately explicit rather than a constructor flag, because the
+        password it establishes exists nowhere else:
+
+        * **The vehicle may demand a physical button press** before it accepts
+          the new password, and will keep the connection waiting up to 60 s for
+          it. Have the vehicle to hand when calling this.
+        * **The returned 16 bytes are yours to persist.** This library never
+          writes to disk. Store them and pass them back as
+          ``Credentials(password=...)`` on every later connection.
+        * **Losing them means losing access.** The vehicle then holds a
+          password no one can produce, it will silently ignore any attempt to
+          set another, and this library can no longer talk to it. Recovery
+          means re-pairing with the phone app and extracting *its* password.
+
+        A vehicle that already holds a password -- one paired with the phone
+        app, or with a previous call to this method -- raises PairingRequired
+        rather than overwriting it.
+        """
+        async with self._connection(allow_pairing=True) as (_transport, established):
+            return established.password
+
+    @asynccontextmanager
+    async def _connection(
+        self, *, allow_pairing: bool
+    ) -> AsyncIterator[tuple[BleTransport, Established]]:
+        """Connect and handshake, tearing the connection down on the way out."""
+        client, transport, established = await self._open(allow_pairing=allow_pairing)
+        try:
+            yield transport, established
+        finally:
+            await self._close(client, transport)
+
+    async def _open(self, *, allow_pairing: bool) -> tuple[BleakClient, BleTransport, Established]:
         """Connect and handshake, retrying only on a busy vehicle."""
         last_busy: VehicleBusy | None = None
 
@@ -123,7 +158,7 @@ class Scooter:
                 await transport.start()
                 await asyncio.sleep(_DRAIN_DELAY)
                 transport.drain()
-                established = await self._handshake(client, transport)
+                established = await self._handshake(client, transport, allow_pairing=allow_pairing)
                 return client, transport, established
             except VehicleBusy as err:
                 # An echoed frame needs a real disconnect to reset the
@@ -162,13 +197,15 @@ class Scooter:
         finally:
             await client.disconnect()
 
-    async def _handshake(self, client: BleakClient, transport: BleTransport) -> Established:
+    async def _handshake(
+        self, client: BleakClient, transport: BleTransport, *, allow_pairing: bool
+    ) -> Established:
         handshake = Handshake(
             device_name=await self._key_material(client),
             suite=self._profile.crypto,
             ble_address=self._profile.board(BoardRole.BLE).address,
             password=self._credentials.password,
-            allow_pairing=self._allow_pairing,
+            allow_pairing=allow_pairing,
         )
 
         step = handshake.start()
@@ -176,8 +213,8 @@ class Scooter:
             if isinstance(step, Established):
                 if step.paired:
                     _LOGGER.info(
-                        "paired with %s; persist the negotiated password to avoid "
-                        "re-pairing on the next connection",
+                        "paired with %s; pair() is returning the negotiated password, "
+                        "which only the caller can store",
                         step.serial,
                     )
                 return step
