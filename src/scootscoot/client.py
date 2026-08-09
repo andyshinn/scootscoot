@@ -11,7 +11,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
@@ -47,7 +47,9 @@ class Credentials:
     preferences key, not a file.
     """
 
-    password: bytes | None = None
+    #: repr=False so the password cannot escape through a logged Credentials or
+    #: through the locals of a rendered traceback.
+    password: bytes | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if self.password is not None and len(self.password) != _PASSWORD_LEN:

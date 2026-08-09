@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
+from scootscoot import profiles
 from scootscoot.client import Credentials, Scooter
+from scootscoot.decode import DecodedValue
 from scootscoot.exceptions import (
     AuthenticationFailed,
     ConnectionFailed,
@@ -39,6 +41,7 @@ __all__ = [
     "BoardRole",
     "ConnectionFailed",
     "Credentials",
+    "DecodedValue",
     "DeviceInfo",
     "DeviceProfile",
     "HandshakeFailed",
@@ -58,4 +61,7 @@ __all__ = [
     "VehicleBusy",
     "VehicleState",
     "__version__",
+    # A Home Assistant config flow renders profiles.ALL as a model picker, so
+    # the module is public surface, not an implementation detail.
+    "profiles",
 ]

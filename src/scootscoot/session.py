@@ -90,7 +90,13 @@ class ScooterSession:
             )
             return None
         if status is not CryptoStatus.OK:
+            # Counter or key skew decrypts a well-formed frame into
+            # plausible-but-wrong values, so this is not merely "garbage on the
+            # air": parsing on would feed silently wrong telemetry to consumers.
+            # A missing reading is recoverable; a wrong one is not. The
+            # handshake treats the same condition as fatal.
             _LOGGER.debug("read 0x%02X:0x%02X failed verification (%s)", board, index, status.name)
+            return None
 
         frame = parse_frame(plaintext)
         if frame is None:

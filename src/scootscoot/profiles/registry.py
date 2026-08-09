@@ -12,5 +12,12 @@ _BY_KEY = {profile.key: profile for profile in ALL}
 
 
 def get(key: str) -> DeviceProfile:
-    """Look up a profile by its key. Raises KeyError if it is not shipped."""
+    """Look up a profile by its key.
+
+    Raises a bare ``KeyError`` for a key this release does not ship -- the one
+    deliberate exception to the rule that every error scootscoot raises derives
+    from ``ScootScootError``. A profile key is a compile-time choice from
+    ``ALL``, not a runtime vehicle condition, and a mapping lookup that misses
+    should say so in the language of mappings.
+    """
     return _BY_KEY[key]

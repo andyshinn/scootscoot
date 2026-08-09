@@ -121,6 +121,10 @@ NINEBOT_CUSTOM = GattProfile(
 )
 
 
+# No slots=True here, alone among the dataclasses in this module: the
+# cached_property lookups below need a per-instance __dict__ to memoise into,
+# and slots removes it. Adding it for consistency would break every profile at
+# first use, not at import.
 @dataclass(frozen=True)
 class DeviceProfile:
     """Everything model-specific about one vehicle family."""
