@@ -95,8 +95,7 @@ class Scooter:
                 timeout=self._read_timeout,
             )
         finally:
-            await transport.stop()
-            await client.disconnect()
+            await self._close(client, transport)
 
     async def poll(self) -> ScooterState:
         """Open a connection, read the profile's poll set, close it."""
@@ -155,9 +154,13 @@ class Scooter:
             raise ConnectionFailed(msg) from err
 
     async def _close(self, client: BleakClient, transport: BleTransport | None) -> None:
-        if transport is not None:
-            await transport.stop()
-        await client.disconnect()
+        # disconnect() must run even if stop() raises (or is cancelled) -- an
+        # abandoned client holds the vehicle's single BLE slot until GC.
+        try:
+            if transport is not None:
+                await transport.stop()
+        finally:
+            await client.disconnect()
 
     async def _handshake(self, client: BleakClient, transport: BleTransport) -> Established:
         handshake = Handshake(
