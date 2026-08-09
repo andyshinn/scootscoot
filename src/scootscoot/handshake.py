@@ -242,8 +242,12 @@ class Handshake:
             msg = "internal error: AUTH requires a password"
             raise HandshakeFailed(msg)
 
-        # start_sn() set 1 and the first encrypt increments to 2, so AUTH lands
-        # on counter 2 whether or not SET_PWD ran. The vehicle depends on that.
+        # The counter simply increments per encrypt; that is all the protocol
+        # needs. The first SN-mode frame is always counter 2: on the pairing
+        # path that is SET_PWD, and AUTH follows at 3; on reconnect SET_PWD is
+        # skipped so AUTH itself is the first at 2. The vehicle tracks which
+        # flow it is in via the stored-password flag, so no special-casing
+        # belongs here.
         self._crypto.set_key(password, self._auth)
         self._phase = _Phase.AUTH
         payload = self._crypto.encrypt(

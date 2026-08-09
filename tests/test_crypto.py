@@ -86,8 +86,11 @@ def test_sn_mode_auth_frame_vector() -> None:
 
 
 def test_first_sn_frame_uses_counter_two() -> None:
-    # start_sn sets 1 and the first encrypt increments to 2, so AUTH lands on
-    # counter 2 whether or not SET_PWD ran. The vehicle depends on this.
+    # start_sn sets 1 and the first encrypt increments to 2: the first
+    # SN-mode frame sent on a fresh crypto context is always counter 2,
+    # whatever command it carries. Which command that ends up being (SET_PWD
+    # on a fresh pairing, AUTH on a reconnect) is a handshake-level decision,
+    # not something this class needs to know about.
     crypto = NbCrypto(ecb_input=FW_DATA)
     crypto.set_key(PASSWORD, AUTH)
     crypto.set_auth_param(AUTH)

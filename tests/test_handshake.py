@@ -5,6 +5,7 @@ import pytest
 from scootscoot.crypto import NbCrypto, generate_password
 from scootscoot.exceptions import (
     AuthenticationFailed,
+    HandshakeFailed,
     PairingRequired,
     PairingTimeout,
     ProtocolError,
@@ -124,6 +125,8 @@ def test_pairing_generates_a_password_and_authenticates() -> None:
 
     step = handshake.feed(set_pwd_response(ENC2_GEN2, accepted=True))
     assert isinstance(step, Send)  # now AUTH
+    # SET_PWD used counter 2, so AUTH -- the next SN-mode frame -- is 3.
+    assert step.payload[-2:] == b"\x00\x03"
 
     expected = generate_password(AUTH_PARAM, FIXED_CLOCK)
     step = handshake.feed(auth_response(ENC2_GEN2, accepted=True, password=expected))
@@ -205,6 +208,23 @@ def test_an_unexpected_command_raises() -> None:
     assert frame != wrong
     with pytest.raises(ProtocolError, match="cmd"):
         handshake.feed(frame)
+
+
+def test_feed_before_start_raises() -> None:
+    handshake = make()
+    with pytest.raises(HandshakeFailed):
+        handshake.feed(bytes(26))
+
+
+def test_feed_after_established_raises() -> None:
+    handshake = make()
+    handshake.start()
+    step = handshake.feed(pre_comm_response(ENC2_GEN2, has_stored_password=True))
+    assert isinstance(step, Send)
+    step = handshake.feed(auth_response(ENC2_GEN2, accepted=True, password=STORED_PASSWORD))
+    assert isinstance(step, Established)
+    with pytest.raises(HandshakeFailed):
+        handshake.feed(bytes(26))
 
 
 def _encrypt_non_sn(plaintext: bytes) -> bytes:
