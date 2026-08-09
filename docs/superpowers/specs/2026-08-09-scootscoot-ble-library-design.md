@@ -459,7 +459,8 @@ walks the plan, performs I/O, and hands the collected values to `build_state`.
 `body_temp_c`, `error_code`, `warning_code`.
 `MotorState`: `body_temp_c`.
 `DeviceInfo` (from `identify()`): `serial`, `part_number`, `vcu_firmware`,
-`mcu_firmware`, `bms_firmware`, `ble_firmware`, `activated_on`.
+`mcu_firmware`, `bms_firmware`, `ble_firmware`, `activated_on`,
+`motor_part_number`.
 
 ```
 ScootScootError
