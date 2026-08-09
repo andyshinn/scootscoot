@@ -128,6 +128,23 @@ def test_unknown_register_raises() -> None:
         profiles.GT3_PRO.register("rNotAThing")
 
 
+def test_has_register_is_true_for_a_declared_register() -> None:
+    # has_register gates models._decoded and models._responding: a False here
+    # silently drops every field of a state group rather than failing loudly.
+    assert profiles.GT3_PRO.has_register("rBmsSOC")
+
+
+def test_has_register_is_false_for_an_undeclared_register() -> None:
+    assert not profiles.GT3_PRO.has_register("rNotAThing")
+
+
+@pytest.mark.parametrize("profile", profiles.ALL, ids=lambda p: p.key)
+def test_has_register_agrees_with_register(profile: DeviceProfile) -> None:
+    for register in profile.registers:
+        assert profile.has_register(register.name)
+        assert profile.register(register.name) is register
+
+
 def test_registers_for_filters_by_board() -> None:
     for register in profiles.GT3_PRO.registers_for(BoardRole.BMS1):
         assert register.board is BoardRole.BMS1

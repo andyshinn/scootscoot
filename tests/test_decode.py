@@ -87,6 +87,20 @@ def test_ascii_strips_trailing_nulls() -> None:
     assert decode(GT3.register("rPN"), raw) == "Z03QB4G25FJ4"
 
 
+def test_ascii_replaces_a_non_ascii_byte_rather_than_raising() -> None:
+    # Pinned, not endorsed: a corrupt byte becomes U+FFFD and the read still
+    # returns a string. Changing this to strict/ignore should be deliberate.
+    register = Register("rText", BoardRole.BLE, 0x10, ValueKind.ASCII, 4)
+    assert decode(register, b"AB\xffD") == "AB\ufffdD"
+
+
+def test_ascii_strips_an_interior_null_and_joins_what_is_left() -> None:
+    # Pinned, not endorsed: nulls are removed everywhere, not just at the end,
+    # so a null-separated field pair silently concatenates.
+    register = Register("rText", BoardRole.BLE, 0x10, ValueKind.ASCII, 4)
+    assert decode(register, b"AB\x00D") == "ABD"
+
+
 def test_u16_array_of_temperatures() -> None:
     raw = bytes.fromhex("22002200230023002200220023002200")
     assert decode(GT3.register("rBmsTemps"), raw) == (34, 34, 35, 35, 34, 34, 35, 34)

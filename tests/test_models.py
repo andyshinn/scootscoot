@@ -4,9 +4,53 @@ from datetime import date
 
 from scootscoot import profiles
 from scootscoot.models import build_info, build_state, plan_poll
-from scootscoot.profiles.types import BoardRole
+from scootscoot.profiles.types import (
+    ENC2_GEN2,
+    NORDIC_UART,
+    Board,
+    BoardRole,
+    DeviceProfile,
+    Register,
+    ValueKind,
+)
 
 GT3 = profiles.GT3_PRO
+
+# The GT3 declares its awake-when-parked registers first, so plan_poll is the
+# identity permutation for it and any test using it alone would pass with the
+# sort key inverted, or absent. This profile interleaves the two groups so the
+# ordering is actually exercised.
+INTERLEAVED = DeviceProfile(
+    key="interleaved",
+    name="Interleaved test fixture",
+    hardware_id=None,
+    server_id=None,
+    crypto=ENC2_GEN2,
+    transports=(NORDIC_UART,),
+    boards=(
+        Board(BoardRole.VCU, 0x16, awake_when_parked=False),
+        Board(BoardRole.BMS1, 0x07, awake_when_parked=True),
+        Board(BoardRole.MCU, 0x02, awake_when_parked=False),
+        Board(BoardRole.BLE, 0x04, awake_when_parked=True),
+    ),
+    registers=(
+        Register("vcu_first", BoardRole.VCU, 0x01, ValueKind.U16, 2),
+        Register("bms_first", BoardRole.BMS1, 0x02, ValueKind.U16, 2),
+        Register("mcu_only", BoardRole.MCU, 0x03, ValueKind.U16, 2),
+        Register("ble_only", BoardRole.BLE, 0x04, ValueKind.U16, 2),
+        Register("vcu_second", BoardRole.VCU, 0x05, ValueKind.U16, 2),
+        Register("bms_second", BoardRole.BMS1, 0x06, ValueKind.U16, 2),
+    ),
+    poll=(
+        "vcu_first",
+        "bms_first",
+        "mcu_only",
+        "ble_only",
+        "vcu_second",
+        "bms_second",
+    ),
+    identity=(),
+)
 
 BMS_VALUES: dict[str, bytes | None] = {
     "rBmsSOC": bytes.fromhex("3600"),
@@ -52,6 +96,26 @@ def test_plan_poll_preserves_declaration_order_within_a_board() -> None:
     planned = [register.name for register in plan_poll(GT3)]
     assert planned.index("rBmsSOC") < planned.index("rBMSVolt")
     assert planned.index("rBattery") < planned.index("rSpeed")
+
+
+def test_plan_poll_reorders_an_interleaved_declaration() -> None:
+    # Every awake-when-parked register moves ahead of every sleeping one, and
+    # declaration order survives inside each group. This is the whole contract,
+    # in one assertion, on a fixture that is not already in the right order.
+    planned = [register.name for register in plan_poll(INTERLEAVED)]
+    assert planned == [
+        "bms_first",
+        "ble_only",
+        "bms_second",
+        "vcu_first",
+        "mcu_only",
+        "vcu_second",
+    ]
+
+
+def test_plan_poll_does_not_drop_or_duplicate_when_reordering() -> None:
+    planned = [register.name for register in plan_poll(INTERLEAVED)]
+    assert sorted(planned) == sorted(INTERLEAVED.poll)
 
 
 def test_build_state_with_everything_answering() -> None:

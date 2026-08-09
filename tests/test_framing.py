@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from scootscoot.framing import (
     BT_ID,
     CMD_AUTH,
@@ -25,6 +27,19 @@ def test_build_frame_sets_length_from_the_payload() -> None:
     frame = build_frame(0x04, CMD_AUTH, 0x00, b"03GGG2527C0165")
     assert frame[2] == 14
     assert frame[7:] == b"03GGG2527C0165"
+
+
+def test_build_frame_accepts_the_longest_legal_payload() -> None:
+    # LEN is a single byte, so 255 is the boundary, not an off-by-one.
+    frame = build_frame(0x04, CMD_AUTH, 0x00, bytes(255))
+    assert frame[2] == 255
+    assert len(frame) == 262
+
+
+def test_build_frame_rejects_an_oversized_payload() -> None:
+    # LEN cannot express 256, so a longer payload would frame as garbage.
+    with pytest.raises(ValueError, match="payload too long"):
+        build_frame(0x04, CMD_AUTH, 0x00, bytes(256))
 
 
 def test_build_read_requests_a_length() -> None:
@@ -59,6 +74,26 @@ def test_parse_frame_rejects_a_wrong_bt_id() -> None:
 
 def test_parse_frame_rejects_a_runt() -> None:
     assert parse_frame(b"\x5a\xa5\x00") is None
+
+
+def test_parse_frame_rejects_one_byte_short_of_the_minimum() -> None:
+    # Six bytes is a header with no index; seven is the shortest real frame.
+    six = bytes([0x5A, SYNC2_GEN2, 0x00, 0x04, BT_ID, CMD_PRE_COMM])
+    assert len(six) == 6
+    assert parse_frame(six) is None
+    assert parse_frame(six + b"\x01") is not None
+
+
+def test_parse_frame_truncates_rather_than_fabricating_a_short_payload() -> None:
+    # LEN claims 32 data bytes; only two are present. The slice degrades to
+    # what is there rather than raising or padding, and the caller sees the
+    # mismatch because `length` still reports what the vehicle claimed --
+    # decode() then rejects the value for being shorter than the register.
+    frame = parse_frame(bytes.fromhex("5aa520073e048f3600"))
+    assert frame is not None
+    assert frame.length == 32
+    assert frame.data == bytes.fromhex("3600")
+    assert len(frame.data) < frame.length
 
 
 def test_assembler_yields_a_whole_frame() -> None:
