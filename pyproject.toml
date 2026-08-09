@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scootscoot"
+description = "Async BLE library for Segway-Ninebot vehicles (Encryption2 / authV2)"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dynamic = ["version"]
+authors = [{ name = "Andy Shinn", email = "andy.shinn@gmail.com" }]
+keywords = ["ble", "bluetooth", "segway", "ninebot", "scooter", "home-assistant"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Home Automation",
+    "Typing :: Typed",
+]
+dependencies = [
+    "bleak>=0.22",
+    "bleak-retry-connector>=3.5",
+    "cryptography>=42",
+]
+
+[project.urls]
+Homepage = "https://github.com/andyshinn/scootscoot"
+Issues = "https://github.com/andyshinn/scootscoot/issues"
+
+[dependency-groups]
+dev = ["pytest>=8", "mypy>=1.11", "ruff>=0.6"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scootscoot"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+# docs/ holds prose specs with illustrative code fences, not shipped source;
+# ruff's markdown-aware formatter would otherwise rewrite them.
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "RUF"]
+# N815: vendor register names such as rBmsSOC are mixed-case by protocol definition.
+# N818: the exception hierarchy names (spec §9) are mandated verbatim and are not
+# all suffixed "Error" (e.g. ConnectionFailed, VehicleBusy); every later task imports
+# them by these exact names.
+ignore = ["N815", "N818"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
