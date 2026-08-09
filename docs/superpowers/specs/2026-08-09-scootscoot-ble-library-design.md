@@ -445,6 +445,13 @@ The poll orders `awake_when_parked` boards first. When a board that may sleep
 fails its first read, the remaining registers on that board are skipped rather
 than paying a timeout each.
 
+Both halves of that behaviour are **pure functions**, deliberately kept out of
+the async session so they fall under the test strategy in §10:
+`plan_poll(profile) -> tuple[Register, ...]` produces the ordering, and
+`build_state(profile, values) -> ScooterState` assembles the result from a
+`{register_name: bytes | None}` mapping. `ScooterSession` is then thin glue that
+walks the plan, performs I/O, and hands the collected values to `build_state`.
+
 `BatteryState`: `soc_percent`, `voltage`, `current`, `cycles`,
 `capacity_full_ah`, `capacity_remaining_ah`, `temperatures: tuple[float, ...]`,
 `charge_status`.
@@ -475,9 +482,11 @@ re-entry of the password.
 ## 10. Testing
 
 pytest, unit tests on pure functions only. The handshake is designed as a pure
-state machine precisely so this strategy still covers the riskiest code; only
-`transport.py` and `client.py` are left to manual hardware testing, and they are
-thin.
+state machine, and poll ordering and state assembly are extracted as pure
+functions (§9), precisely so this strategy still covers the logic that matters.
+What remains untested is `transport.py`, `session.py` and `client.py` — GATT
+plumbing, a walk over a precomputed plan, and connection setup. Those are
+verified by ruff and mypy strict, and exercised manually against the GT3.
 
 - **Crypto** — SN and non-SN round-trips under both suites; gen2 and gen3
   ciphertext proven distinct for identical plaintext; `JavaRandom` against known
@@ -495,6 +504,11 @@ thin.
   real hardware: `7452 → 74.52 km` range against `5781 → 578.1 km` odometer
   (the two scales that must not be conflated); `13114 → 2025-09-26`; `290 →
   1.2.2`; twenty cell voltages summing to 75.76 V against `0x8C`'s 75.75 V.
+- **State assembly** — `plan_poll` orders awake-when-parked boards first;
+  `build_state` on a full result set, on a parked-vehicle set (BMS answered,
+  VCU and MCU silent → `vehicle is None`, `motor is None`, `responding` holds
+  only BMS1), and on a set with individual registers missing inside a group
+  that did answer.
 - **Profiles** — registry integrity: every name in `poll` and `identity`
   resolves, every register's board exists in `boards`, no duplicate register
   names, no duplicate board addresses or roles.
