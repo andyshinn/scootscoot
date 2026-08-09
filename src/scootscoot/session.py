@@ -82,7 +82,13 @@ class ScooterSession:
             _LOGGER.debug("read 0x%02X:0x%02X timed out", board, index)
             return None
 
-        plaintext, status = self._crypto.decrypt(raw)
+        try:
+            plaintext, status = self._crypto.decrypt(raw)
+        except ValueError:
+            _LOGGER.debug(
+                "read 0x%02X:0x%02X frame too short to decrypt: %s", board, index, raw.hex()
+            )
+            return None
         if status is not CryptoStatus.OK:
             _LOGGER.debug("read 0x%02X:0x%02X failed verification (%s)", board, index, status.name)
 
