@@ -28,6 +28,9 @@ Authoritative sources, already read. Do not re-derive from scratch.
 - Enc2/authV2 protocol core: crypto, framing, frame reassembly, 3-phase handshake.
 - Declarative device profiles; GT3 Pro as the first.
 - Read-only telemetry returning typed dataclasses.
+- Explicit pairing as `await scooter.pair()`, which returns the negotiated
+  password for the caller to persist. It is a method, not a constructor flag:
+  the password it writes into the vehicle is unrecoverable if it is dropped.
 - A raw escape hatch — register reads, board probing, register scanning — so
   others can map new models with this package rather than around it.
 - Home Assistant-compatible connection handling.
@@ -311,16 +314,20 @@ out.
 
 **Stored-password path.** A non-zero `INDEX` in the PRE_COMM response means the
 vehicle holds a password. SET_PWD is then skipped entirely and AUTH is sent
-under `SHA-1(stored_password ‖ auth_param)`. No special counter handling is
-needed: `start_sn()` sets 1 and the first encrypt increments to 2, so AUTH lands
-on counter 2 whether or not SET_PWD ran — which is what the vehicle expects.
+under `SHA-1(stored_password ‖ auth_param)`. The counter simply increments per
+encrypt, which is all either flow needs: `start_sn()` sets 1, so on the pairing
+path SET_PWD encrypts at 2 and AUTH follows at 3, while on reconnect SET_PWD is
+skipped and AUTH itself is the first SN-mode frame, at 2. The vehicle knows
+which flow it is in from its own stored-password flag, so no special-casing
+belongs in the handshake.
 
 **Echo detection.** A response byte-identical to the request means the vehicle
 echoed rather than answered. This is a distinct, retryable outcome, not a
 handshake failure.
 
-**Pairing** (SET_PWD) is implemented but gated behind `allow_pairing=True`,
-since it can block on a physical button press for up to 60 s.
+**Pairing** (SET_PWD) is implemented but gated behind `Handshake(allow_pairing=
+True)`, since it can block on a physical button press for up to 60 s. Only
+`Scooter.pair()` passes that flag; see §8.
 
 Retry budgets follow the documented app behaviour and are carried on each `Send`
 step so the driver loop stays dumb: PRE_COMM 10 attempts at 2 s; SET_PWD
@@ -387,12 +394,12 @@ scooter = Scooter(
     profiles.GT3_PRO,
     Credentials(password=pw),     # 16 raw bytes; caller owns persistence
     device_name=None,             # optional override of BLE name key material
-    allow_pairing=False,
     connect_timeout=20.0,
 )
 
 state = await scooter.poll()      # opens, handshakes, reads, closes
 info  = await scooter.identify()  # static identity; call once at setup
+pw    = await scooter.pair()      # unpaired vehicle only; returns 16 bytes
 
 async with scooter.session() as s:        # one connection, many operations
     state = await s.poll()
@@ -405,6 +412,13 @@ async with scooter.session() as s:        # one connection, many operations
 Both `scooter.poll()` and `scooter.identify()` open their own connection and
 close it; each is exactly `async with self.session() as s: return await s.<op>()`.
 No connection outlives the operation that opened it.
+
+`scooter.pair()` is the only operation that writes to the vehicle, and the only
+one that enables SET_PWD. It is a method rather than a constructor flag because
+the password it negotiates exists nowhere else: it is written into the vehicle
+permanently and returned to the caller to persist. Losing it means losing access
+to that vehicle from this library. `poll()`, `identify()` and `session()` never
+pair; against an unpaired vehicle they raise `PairingRequired`.
 
 Return types: `read(name)` returns the register's decoded value — `int`,
 `float`, `str`, `tuple[float, ...]`, `date`, or `bytes` per its `ValueKind` —
@@ -468,7 +482,7 @@ ScootScootError
 ├── ServiceNotFound         no service with both characteristics present
 ├── HandshakeFailed
 │   ├── AuthenticationFailed   AUTH rejected — stale or wrong password
-│   ├── PairingRequired        no stored password and allow_pairing=False
+│   ├── PairingRequired        no password supplied, and not pairing
 │   └── PairingTimeout         confirmation button never pressed
 ├── ProtocolError           unparseable frame or MAC mismatch
 └── VehicleBusy             echo detected, or the phone app holds the slot

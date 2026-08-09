@@ -8,7 +8,27 @@ permissions:
   contents: read
 
 jobs:
+  # ci.yml sets tags-ignore, so a tag push runs nothing there. Without this job
+  # a release would reach PyPI having never had its tests, lint, or types run,
+  # and a bad version number cannot be replaced once uploaded.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # hatch-vcs derives the version from tags, so a shallow clone breaks it.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --python 3.12
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +48,7 @@ jobs:
     environment: pypi
     permissions:
       # Required for Trusted Publishing. No API token is stored anywhere.
+      # Scoped to this job alone -- nothing else needs to mint an OIDC token.
       id-token: write
     steps:
       - uses: actions/download-artifact@v4

@@ -4183,7 +4183,27 @@ permissions:
   contents: read
 
 jobs:
+  # ci.yml sets tags-ignore, so a tag push runs nothing there. Without this job
+  # a release would reach PyPI having never had its tests, lint, or types run,
+  # and a bad version number cannot be replaced once uploaded.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # hatch-vcs derives the version from tags, so a shallow clone breaks it.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --python 3.12
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -4203,6 +4223,7 @@ jobs:
     environment: pypi
     permissions:
       # Required for Trusted Publishing. No API token is stored anywhere.
+      # Scoped to this job alone -- nothing else needs to mint an OIDC token.
       id-token: write
     steps:
       - uses: actions/download-artifact@v4
@@ -4212,7 +4233,25 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
 ```
 
-- [ ] **Step 4: Verify the build produces a versioned artifact**
+- [ ] **Step 4: Run the whole suite one last time**
+
+Run: `uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run mypy`
+Expected: all green.
+
+- [ ] **Step 5: Commit**
+
+Commit *before* tagging. hatch-vcs derives the version from the tag plus the
+distance from it, so a tag placed on top of a dirty tree — or with commits still
+to come — yields something like `0.1.1.dev1+g1234abc`. Building and publishing
+that ships a version number that can never be reproduced or replaced, because
+PyPI does not allow re-uploading a filename.
+
+```bash
+git add README.md .github
+git commit -m "docs: README, CI, and PyPI trusted publishing"
+```
+
+- [ ] **Step 6: Tag, build, and verify the artifact carries the release version**
 
 ```bash
 git tag -a v0.1.0 -m "v0.1.0"
@@ -4220,26 +4259,22 @@ uv build
 ls dist/
 ```
 
-Expected: `scootscoot-0.1.0.tar.gz` and `scootscoot-0.1.0-py3-none-any.whl`. If the version reads `0.0.0` or `0.1.dev...`, hatch-vcs is not seeing the tag — check that the tag exists and the clone is not shallow.
+Expected: `scootscoot-0.1.0.tar.gz` and `scootscoot-0.1.0-py3-none-any.whl`. If the version reads `0.0.0` or carries a `.dev` / `+g` suffix, hatch-vcs is not sitting exactly on the tag — check that the tag exists, that nothing was committed after it, that the tree is clean, and that the clone is not shallow.
 
-- [ ] **Step 5: Confirm py.typed ships in the wheel**
+- [ ] **Step 7: Confirm py.typed ships in the wheel**
 
 Run: `unzip -l dist/scootscoot-0.1.0-py3-none-any.whl | grep py.typed`
 Expected: one line showing `scootscoot/py.typed`. Without it, consumers get no type information.
 
-- [ ] **Step 6: Run the whole suite one last time**
+- [ ] **Step 8: Delete the local tag**
 
-Run: `uv run pytest && uv run ruff check . && uv run mypy`
-Expected: all green.
+Run: `git tag -d v0.1.0`
 
-- [ ] **Step 7: Commit**
+The tag here exists only to prove the build produces a versioned artifact.
+Pushing it triggers `publish.yml` and uploads to PyPI, so the real release tag
+is created deliberately, at release time, on the commit being released.
 
-```bash
-git add README.md .github
-git commit -m "docs: README, CI, and PyPI trusted publishing"
-```
-
-- [ ] **Step 8: Register the Trusted Publisher (manual, one time)**
+- [ ] **Step 9: Register the Trusted Publisher (manual, one time)**
 
 This cannot be scripted. On PyPI, under the project's publishing settings, add a
 GitHub publisher with:
