@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
+from scootscoot.client import Credentials, Scooter
 from scootscoot.exceptions import (
     AuthenticationFailed,
     ConnectionFailed,
@@ -17,6 +18,15 @@ from scootscoot.exceptions import (
     UnknownRegister,
     VehicleBusy,
 )
+from scootscoot.models import (
+    BatteryState,
+    DeviceInfo,
+    MotorState,
+    ScooterState,
+    VehicleState,
+)
+from scootscoot.profiles.types import BoardRole, DeviceProfile, Register, ValueKind
+from scootscoot.session import ScooterSession
 
 try:
     __version__ = version("scootscoot")
@@ -25,15 +35,27 @@ except PackageNotFoundError:  # pragma: no cover - only when running from a bare
 
 __all__ = [
     "AuthenticationFailed",
+    "BatteryState",
+    "BoardRole",
     "ConnectionFailed",
+    "Credentials",
+    "DeviceInfo",
+    "DeviceProfile",
     "HandshakeFailed",
+    "MotorState",
     "PairingRequired",
     "PairingTimeout",
     "ProtocolError",
+    "Register",
     "ScootScootError",
+    "Scooter",
+    "ScooterSession",
+    "ScooterState",
     "ServiceNotFound",
     "UnknownBoard",
     "UnknownRegister",
+    "ValueKind",
     "VehicleBusy",
+    "VehicleState",
     "__version__",
 ]
