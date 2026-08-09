@@ -26,7 +26,7 @@ class BatteryState:
     cycles: int | None = None
     capacity_full_ah: float | None = None
     capacity_remaining_ah: float | None = None
-    temperatures: tuple[int | float, ...] = ()
+    temperatures: tuple[int | float, ...] | None = None
     charge_status: int | None = None
 
 
@@ -78,6 +78,7 @@ class DeviceInfo:
     bms_firmware: str | None = None
     ble_firmware: str | None = None
     activated_on: date | None = None
+    motor_part_number: str | None = None
 
 
 # Vendor register names are stable across models, so these maps are shared by
@@ -112,6 +113,7 @@ _INFO_FIELDS = {
     "rBmsV": "bms_firmware",
     "rBleV": "ble_firmware",
     "rActDate": "activated_on",
+    "rMCUPN": "motor_part_number",
 }
 
 

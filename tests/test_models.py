@@ -114,6 +114,20 @@ def test_a_truncated_read_yields_a_none_field_not_a_missing_group() -> None:
     assert state.motor.body_temp_c is None
 
 
+def test_a_missing_temperatures_read_yields_none_not_an_empty_tuple() -> None:
+    # The BMS answered other registers, so the group exists; rBmsTemps itself
+    # did not come back, so that one field must read None -- not the empty
+    # tuple a bare dataclass default would give a naive `is None` check.
+    values: dict[str, bytes | None] = dict(BMS_VALUES)
+    values["rBmsTemps"] = None
+
+    state = build_state(GT3, values, serial="03GGG2527C0165")
+
+    assert state.battery is not None
+    assert state.battery.soc_percent == 54
+    assert state.battery.temperatures is None
+
+
 def test_build_state_with_nothing_answering() -> None:
     values: dict[str, bytes | None] = dict.fromkeys(GT3.poll)
     state = build_state(GT3, values, serial="03GGG2527C0165")
@@ -147,6 +161,7 @@ def test_build_info_assembles_identity() -> None:
     assert info.bms_firmware == "1.0.7"
     assert info.ble_firmware == "0.2.8"
     assert info.activated_on == date(2025, 9, 26)
+    assert info.motor_part_number == "Z07ABTW25CUH0991"
 
 
 def test_build_info_tolerates_a_sleeping_vcu() -> None:
@@ -164,3 +179,4 @@ def test_build_info_tolerates_a_sleeping_vcu() -> None:
     assert info.ble_firmware == "0.2.8"
     assert info.part_number is None
     assert info.vcu_firmware is None
+    assert info.motor_part_number is None
