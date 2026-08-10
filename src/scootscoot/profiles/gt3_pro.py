@@ -3,7 +3,8 @@
 Board addresses and register scales come from a full 256-address sweep and
 per-register calibration against the Segway app on serial 03GGG2527C0165
 (VCU 1.2.2 / MCU 2.1.1 / BMS 1.0.7 / BLE 0.2.8). Register names come from the
-app's generated command table (server id 10257).
+app's generated command table (server id 10257), by way of the device pages in
+segway-ninebot-ble (Copyright 2026 NootNooot, Apache-2.0).
 
 Where the two disagree, the hardware wins -- see rBmsCellVolFrequence.
 """

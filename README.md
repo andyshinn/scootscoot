@@ -162,13 +162,35 @@ Read-only telemetry. No register writes, no vehicle actions, no Encryption3.
 The single exception is the SET_PWD frame sent by `pair()`, which is what
 pairing is.
 
-## Credits
+## Attribution
 
-Protocol documentation and the reference implementation come from the
-[segway-ninebot-ble](https://codeberg.org/NootNooot/segway-ninebot-ble) and
-[segway-ninebot-ble-cli](https://codeberg.org/NootNooot/segway-ninebot-ble-cli)
-projects.
+scootscoot is a derivative work of two Apache-2.0 projects by NootNooot,
+Copyright 2026 NootNooot:
+
+- [segway-ninebot-ble](https://codeberg.org/NootNooot/segway-ninebot-ble) —
+  the protocol documentation. Framing, the Encryption2 handshake, board ids,
+  and the per-device command tables the register names come from.
+- [segway-ninebot-ble-cli](https://codeberg.org/NootNooot/segway-ninebot-ble-cli) —
+  the reference implementation. `scootscoot/crypto.py` is a port of its
+  `nb_crypto.py`, which was itself verified against a Ghidra decompilation of
+  `libnbcrypto.so`.
+
+What this package changed: the CLI's I/O-free modules were rewritten as an
+async library with a session-scoped connection model, register decoding moved
+behind declarative per-model profiles, `cryptography` replaced `pycryptodome`
+for the single-block AES call, and the CLI surface was dropped. The protocol
+and crypto behavior itself is unchanged — the vehicle would reject it otherwise.
+
+Neither upstream project nor this one is affiliated with, authorized by, or
+endorsed by Segway Inc. or Ninebot. "Segway" and "Ninebot" are trademarks of
+their respective owners, used here only to identify the hardware this library
+talks to.
 
 ## License
 
-MIT
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Upstream picked Apache-2.0 for the patent grant, the liability terms, and the
+explicit trademark clause, all of which matter for code that talks to a
+vehicle. This package stays on it: it carries enough of that work that keeping
+the license and the attribution chain together is the honest arrangement.

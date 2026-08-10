@@ -1,8 +1,13 @@
 """Encryption2 (authV2) crypto primitives.
 
-Ported from the reference implementation, which was verified against a Ghidra
-decompilation of libnbcrypto.so: nb_encrypt @ 0x169f80, the CBC-MAC routine
-@ 0x16a35c, and nb_decrypt @ 0x16a55c.
+Ported from nb_crypto.py in segway-ninebot-ble-cli (Copyright 2026 NootNooot,
+Apache-2.0, https://codeberg.org/NootNooot/segway-ninebot-ble-cli), which was
+verified against a Ghidra decompilation of libnbcrypto.so: nb_encrypt
+@ 0x169f80, the CBC-MAC routine @ 0x16a35c, and nb_decrypt @ 0x16a55c.
+
+Changed from the original: `cryptography` replaces `pycryptodome` for the
+single-block AES call, and the module is typed and structured for library use.
+The algorithm is untouched.
 
 The construction resembles AES-CCM but is not CCM: the CTR nonce format is
 custom and the MAC is truncated to four bytes. Do not substitute a standard

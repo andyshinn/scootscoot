@@ -6,6 +6,10 @@
 
 feed() takes encrypted bytes and decrypts internally, so the driver only moves
 bytes between this object and the transport. No I/O happens here.
+
+The handshake sequence is documented in segway-ninebot-ble and implemented
+imperatively in segway-ninebot-ble-cli (Copyright 2026 NootNooot, Apache-2.0);
+its expression as a state machine is this package's own.
 """
 
 from __future__ import annotations

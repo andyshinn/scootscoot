@@ -5,6 +5,11 @@ Response (vehicle -> app):  [0x5A, sync2, LEN, source_board, 0x3E, cmd, index, *
 
 Note the 0x3E moves between the two layouts. On the wire, after encryption, a
 frame is always LEN + 13 bytes.
+
+The frame layout and its constants come from nb_protocol.py in
+segway-ninebot-ble-cli and from the segway-ninebot-ble protocol documentation
+(Copyright 2026 NootNooot, Apache-2.0). Reassembly and the parsing API here are
+this package's own.
 """
 
 from __future__ import annotations

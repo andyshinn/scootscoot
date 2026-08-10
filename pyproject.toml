@@ -6,8 +6,8 @@ build-backend = "hatchling.build"
 name = "scootscoot"
 description = "Async BLE library for Segway-Ninebot vehicles (Encryption2 / authV2)"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.12"
 dynamic = ["version"]
 authors = [{ name = "Andy Shinn", email = "andy.shinn@gmail.com" }]

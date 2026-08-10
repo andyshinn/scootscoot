@@ -1,0 +1,25 @@
+scootscoot
+Copyright 2026 Andy Shinn
+
+This product includes software and protocol documentation developed by
+NootNooot as part of the following projects, both licensed under the
+Apache License, Version 2.0:
+
+  segway-ninebot-ble-cli
+  Copyright 2026 NootNooot
+  https://codeberg.org/NootNooot/segway-ninebot-ble-cli
+
+  segway-ninebot-ble
+  Copyright 2026 NootNooot
+  https://codeberg.org/NootNooot/segway-ninebot-ble
+
+Their NOTICE files carry the following statement, reproduced here:
+
+  This is an unofficial, independently developed implementation created
+  through reverse engineering for interoperability purposes. It is not
+  affiliated with, authorized by, endorsed by, or sponsored by Segway Inc.,
+  Ninebot, or any related entity. "Segway" and "Ninebot" are trademarks of
+  their respective owners and are used here only to identify the hardware
+  this software interoperates with.
+
+The same statement applies to scootscoot itself.
