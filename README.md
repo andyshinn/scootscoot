@@ -58,6 +58,15 @@ async with scooter.session() as session:
     registers = await session.scan_registers(0x16)
 ```
 
+To check a profile against real hardware, `scripts/probe_registers.py` reads
+every register in it and records every frame that comes back, including the
+ones `read_raw` discards, and why. Capture once with the vehicle off and once
+with it on:
+
+```bash
+uv run python scripts/probe_registers.py AA:BB:CC:DD:EE:FF --note off --out off.json
+```
+
 ## Credentials
 
 The 16-byte BLE password is yours to store; this library never touches disk.
