@@ -195,6 +195,12 @@ class ScooterSession:
                 continue
 
             raw = await self._read_register(register)
+            if raw is None:
+                # Awake boards drop the odd reply -- one read in ten on a parked
+                # GT3. One retry keeps a single drop from blanking a reading,
+                # or from passing for a sleeping board.
+                _LOGGER.debug("%s did not answer; retrying once", register.name)
+                raw = await self._read_register(register)
             values[register.name] = raw
 
             if raw is None and not self._profile.board(register.board).awake_when_parked:

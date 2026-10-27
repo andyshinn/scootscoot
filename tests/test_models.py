@@ -143,7 +143,21 @@ def test_build_state_with_everything_answering() -> None:
 
 
 def test_build_state_on_a_parked_vehicle() -> None:
-    # Only the BLE radio and the BMS answer with the vehicle switched off.
+    # A switched-off GT3 still answers from the BMS and the VCU; only the MCU
+    # is asleep.
+    values: dict[str, bytes | None] = {**BMS_VALUES, **VCU_VALUES}
+    values.update(dict.fromkeys(MCU_VALUES))
+
+    state = build_state(GT3, values, serial="03GGG2527C0165")
+
+    assert state.battery is not None
+    assert state.battery.soc_percent == 54
+    assert state.vehicle is not None
+    assert state.motor is None
+    assert state.responding == frozenset({BoardRole.BMS1, BoardRole.VCU})
+
+
+def test_build_state_with_only_the_battery_answering() -> None:
     values: dict[str, bytes | None] = dict(BMS_VALUES)
     values.update(dict.fromkeys(VCU_VALUES))
     values.update(dict.fromkeys(MCU_VALUES))
@@ -151,7 +165,6 @@ def test_build_state_on_a_parked_vehicle() -> None:
     state = build_state(GT3, values, serial="03GGG2527C0165")
 
     assert state.battery is not None
-    assert state.battery.soc_percent == 54
     assert state.vehicle is None
     assert state.motor is None
     assert state.responding == frozenset({BoardRole.BMS1})

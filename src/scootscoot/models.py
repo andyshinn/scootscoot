@@ -54,8 +54,8 @@ class MotorState:
 class ScooterState:
     """One poll's worth of readings.
 
-    A group is None when its board did not answer -- on a parked vehicle that
-    means `vehicle` and `motor` are None while `battery` is populated. Inspect
+    A group is None when its board did not answer -- on a parked GT3 that
+    means `motor` is None while `battery` and `vehicle` are populated. Inspect
     `responding` to tell "asleep" from "broken".
     """
 

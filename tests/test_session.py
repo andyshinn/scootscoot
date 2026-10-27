@@ -12,6 +12,7 @@ from tests.vehicle_frames import AUTH_PARAM, SERIAL, STORED_PASSWORD, response_p
 
 VCU = GT3_PRO.board(BoardRole.VCU).address
 BMS = GT3_PRO.board(BoardRole.BMS1).address
+MCU = GT3_PRO.board(BoardRole.MCU).address
 
 #: Given (board, index, length) from a decrypted request, the plaintext frames
 #: the vehicle sends back. An empty list is silence.
@@ -127,3 +128,52 @@ def test_poll_reports_every_board_on_a_switched_on_scooter() -> None:
     state = asyncio.run(session(lambda b, i, n: [reply(b, i, bytes(n))]).poll())
     assert state.responding == frozenset({BoardRole.BMS1, BoardRole.VCU, BoardRole.MCU})
     assert state.vehicle is not None
+
+
+def test_poll_on_a_parked_gt3_reports_the_vcu_but_not_the_mcu() -> None:
+    # What a switched-off GT3 actually does: the VCU still answers in full and
+    # only the MCU is silent, so the MCU is what separates parked from on.
+    def respond(board: int, index: int, length: int) -> list[bytes]:
+        return [] if board == MCU else [reply(board, index, bytes(length))]
+
+    state = asyncio.run(session(respond).poll())
+    assert state.responding == frozenset({BoardRole.BMS1, BoardRole.VCU})
+    assert state.vehicle is not None
+    assert state.motor is None
+
+
+def test_poll_retries_a_dropped_reply_once() -> None:
+    requests: list[tuple[int, int]] = []
+
+    def respond(board: int, index: int, length: int) -> list[bytes]:
+        requests.append((board, index))
+        if (board, index) == (BMS, 0x8F) and requests.count((BMS, 0x8F)) == 1:
+            return []
+        return [reply(board, index, bytes(length))]
+
+    state = asyncio.run(session(respond).poll())
+    assert requests.count((BMS, 0x8F)) == 2
+    assert state.battery is not None
+    assert state.battery.soc_percent == 0
+
+
+def test_poll_gives_a_sleeping_board_one_retry_then_skips_it() -> None:
+    requests: list[tuple[int, int]] = []
+
+    def respond(board: int, index: int, length: int) -> list[bytes]:
+        requests.append((board, index))
+        return [] if board == MCU else [reply(board, index, bytes(length))]
+
+    asyncio.run(session(respond).poll())
+    assert [request for request in requests if request[0] == MCU] == [(MCU, 0x3E)] * 2
+
+
+def test_poll_does_not_retry_a_reply_that_arrived() -> None:
+    requests: list[tuple[int, int]] = []
+
+    def respond(board: int, index: int, length: int) -> list[bytes]:
+        requests.append((board, index))
+        return [reply(board, index, bytes(length))]
+
+    asyncio.run(session(respond).poll())
+    assert len(requests) == len(GT3_PRO.poll)

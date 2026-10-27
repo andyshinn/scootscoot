@@ -90,11 +90,13 @@ def test_gt3_has_no_dashboard_board() -> None:
         profiles.GT3_PRO.board(BoardRole.DIS)
 
 
-def test_gt3_sleeps_the_vcu_and_mcu_when_parked() -> None:
+def test_gt3_sleeps_only_the_mcu_when_parked() -> None:
+    # Measured: a switched-off GT3 answers every VCU read in full, and no MCU
+    # read at all.
     gt3 = profiles.GT3_PRO
     assert gt3.board(BoardRole.BMS1).awake_when_parked
     assert gt3.board(BoardRole.BLE).awake_when_parked
-    assert not gt3.board(BoardRole.VCU).awake_when_parked
+    assert gt3.board(BoardRole.VCU).awake_when_parked
     assert not gt3.board(BoardRole.MCU).awake_when_parked
 
 

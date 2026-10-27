@@ -25,7 +25,10 @@ from scootscoot.profiles.types import (
 _BOARDS = (
     # vcu 0x16 is absent from upstream board_ids.json, whose own header notes
     # that board IDs are the one thing not present in the app config packages.
-    Board(BoardRole.VCU, 0x16, awake_when_parked=False),
+    # It answers with the vehicle switched off -- full readings, not errors --
+    # which the first sweep missed. The MCU is the board that really sleeps,
+    # so it is the one that tells "switched on" from "parked".
+    Board(BoardRole.VCU, 0x16, awake_when_parked=True),
     Board(BoardRole.MCU, 0x02, awake_when_parked=False),
     Board(BoardRole.BMS1, 0x07, awake_when_parked=True),
     Board(BoardRole.BLE, 0x04, awake_when_parked=True),
@@ -58,7 +61,7 @@ _REGISTERS = (
         unit="V",
     ),
     Register("rTimeFull", BoardRole.BMS1, 0x94, ValueKind.U16, 2, unit="min"),
-    # --- VCU (0x16) -- asleep when parked ---
+    # --- VCU (0x16) -- answers when parked ---
     Register("rSN", BoardRole.VCU, 0x10, ValueKind.ASCII, 14),
     Register("rPN", BoardRole.VCU, 0x20, ValueKind.ASCII, 16),
     Register("rCtrlV", BoardRole.VCU, 0x17, ValueKind.VERSION, 2),

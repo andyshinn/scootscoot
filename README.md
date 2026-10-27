@@ -34,8 +34,8 @@ print(info.serial, info.part_number, info.vcu_firmware)
 
 `identify()` reads static data — serial, part numbers, firmware versions,
 activation date. Call it once at setup, to populate a device registry, and not
-on every poll: none of it changes, and the boards holding most of it are asleep
-on a parked vehicle.
+on every poll: none of it changes. On a parked GT3 everything but the motor
+controller's part number is readable; that one needs the vehicle switched on.
 
 ### Reading more than the poll set
 
@@ -102,8 +102,9 @@ Against a vehicle that already holds a password, `pair()` raises
 ## What you get back
 
 `poll()` returns a `ScooterState`. Each group is `None` when its board did not
-answer — on a parked vehicle only the BLE radio and the BMS are awake, so
-`battery` is populated while `vehicle` and `motor` are `None`. Check
+answer. A switched-off GT3 still answers from the BMS and the VCU, so `battery`
+and `vehicle` are populated while `motor` is `None` — which makes
+`BoardRole.MCU in state.responding` the test for "switched on". Check
 `state.responding` to tell "asleep" from "broken".
 
 ## Errors
@@ -136,11 +137,14 @@ release does not ship.
 A healthy poll takes a few seconds; every timeout below is a ceiling, not a
 cost. Size a coordinator's timeout against the worst case: up to 20 s to
 connect, then a handshake that will retry PRE_COMM ten times and AUTH three
-times at 2 s each (~26 s), then the register reads at 2 s each — around 20 s for
-the GT3 poll set, because the first timeout from a sleeping board skips the rest
-of that board's registers. An echoed PRE_COMM restarts connect-and-handshake up
-to three times with 1 s and 2 s backoff, which puts the absolute worst case a
-little over two minutes before `VehicleBusy` is raised. Set a shorter timeout
+times at 2 s each (~26 s), then the register reads at 2 s each. A read that gets
+no answer is retried once, because awake boards drop the odd reply; a sleeping
+board's remaining registers are then skipped. On a parked GT3 that costs 4 s for
+the MCU, and a link that goes silent mid-poll costs about 64 s for the poll set.
+An echoed PRE_COMM restarts connect-and-handshake up to three times with 1 s and
+2 s backoff. That is a little over two minutes when it ends in `VehicleBusy`,
+and around three and a half when the last attempt connects and the link then
+goes silent. Set a shorter timeout
 deliberately if you would rather be the one who gives up first.
 
 ## Debug logging
