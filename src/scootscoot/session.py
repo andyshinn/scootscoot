@@ -12,7 +12,7 @@ from collections.abc import Iterable, Sequence
 from scootscoot.channel import FrameChannel
 from scootscoot.crypto import CryptoStatus, NbCrypto
 from scootscoot.decode import DecodedValue, decode
-from scootscoot.framing import build_read, parse_frame
+from scootscoot.framing import CMD_READ_RESP, build_read, parse_frame
 from scootscoot.models import (
     DeviceInfo,
     ScooterState,
@@ -71,7 +71,11 @@ class ScooterSession:
         *,
         timeout: float | None = None,
     ) -> bytes | None:
-        """Read one register by raw address. None on timeout or a mismatch."""
+        """Read one register by raw address.
+
+        None on timeout, and on any reply that is not a full read response for
+        this board and index.
+        """
         self._channel.drain()
         request = build_read(board, index, length, sync2=self._sync2)
         await self._channel.send(self._crypto.encrypt(request))
@@ -109,6 +113,21 @@ class ScooterSession:
                 "board 0x%02X answered a request aimed at 0x%02X; discarding",
                 frame.board_id,
                 board,
+            )
+            return None
+        if frame.cmd != CMD_READ_RESP or frame.index != index or len(frame.data) < length:
+            # Anything else -- an error or status frame, a stale reply for an
+            # earlier register, an empty payload -- is not a reading. Returning
+            # it would mark the board as responding (models._responding counts
+            # any non-None value), which is how a parked VCU looked powered on.
+            _LOGGER.debug(
+                "read 0x%02X:0x%02X got cmd 0x%02X index 0x%02X with %d of %d bytes; discarding",
+                board,
+                index,
+                frame.cmd,
+                frame.index,
+                len(frame.data),
+                length,
             )
             return None
         return frame.data
