@@ -49,7 +49,7 @@ class Board:
     role: BoardRole
     address: int
     #: Whether this board answers with the vehicle switched off. On a parked
-    #: vehicle only the BLE radio and the BMS respond; VCU and MCU sleep.
+    #: GT3 the MCU sleeps; the BLE radio, BMS and VCU all still respond.
     awake_when_parked: bool
 
 
